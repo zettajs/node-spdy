@@ -139,6 +139,14 @@ describe('SPDY Server', function () {
       }
     })
 
+    it('server should emit ping event', function (done) {
+      server.on('ping', function (socket) {
+        done()
+      })
+
+      client.ping()
+    })
+
     it('should process expect-continue request', function (done) {
       var stream = client.request({
         method: 'GET',
