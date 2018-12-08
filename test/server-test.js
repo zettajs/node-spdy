@@ -10,13 +10,8 @@ var util = require('util')
 var fixtures = require('./fixtures')
 var spdy = require('../')
 
-// Node.js 0.10 and 0.12 support
-Object.assign = process.versions.modules >= 46
-  ? Object.assign // eslint-disable-next-line
-  : util._extend
-
 describe('SPDY Server', function () {
-  fixtures.everyConfig(function (protocol, npn, version, plain) {
+  fixtures.everyConfig(function (protocol, alpn, version, plain) {
     var server
     var client
 
@@ -32,7 +27,7 @@ describe('SPDY Server', function () {
         var socket = (plain ? net : tls).connect({
           rejectUnauthorized: false,
           port: fixtures.port,
-          NPNProtocols: [ npn ]
+          ALPNProtocols: [ alpn ]
         }, function () {
           client = transport.connection.create(socket, {
             protocol: protocol,
@@ -59,9 +54,13 @@ describe('SPDY Server', function () {
       }, function (err) {
         assert(!err)
 
+        stream.on('error', (err) => {
+          done(err)
+        })
+
         stream.on('response', function (status, headers) {
-          assert.equal(status, 200)
-          assert.equal(headers.ok, 'yes')
+          assert.strictEqual(status, 200)
+          assert.strictEqual(headers.ok, 'yes')
 
           fixtures.expectData(stream, 'response', done)
         })
@@ -70,8 +69,8 @@ describe('SPDY Server', function () {
       })
 
       server.on('request', function (req, res) {
-        assert.equal(req.isSpdy, res.isSpdy)
-        assert.equal(req.spdyVersion, res.spdyVersion)
+        assert.strictEqual(req.isSpdy, res.isSpdy)
+        assert.strictEqual(req.spdyVersion, res.spdyVersion)
         assert(req.isSpdy)
         if (!plain) {
           assert(req.socket.encrypted)
@@ -82,14 +81,14 @@ describe('SPDY Server', function () {
         if (version === 3.1) {
           assert(req.spdyVersion >= 3 && req.spdyVersion <= 3.1)
         } else {
-          assert.equal(req.spdyVersion, version)
+          assert.strictEqual(req.spdyVersion, version)
         }
         assert(req.spdyStream)
         assert(res.spdyStream)
 
-        assert.equal(req.method, 'GET')
-        assert.equal(req.url, '/get')
-        assert.deepEqual(req.headers, { a: 'b', host: 'localhost' })
+        assert.strictEqual(req.method, 'GET')
+        assert.strictEqual(req.url, '/get')
+        assert.deepStrictEqual(req.headers, { a: 'b', host: 'localhost' })
 
         req.on('end', function () {
           res.writeHead(200, {
@@ -110,8 +109,8 @@ describe('SPDY Server', function () {
         assert(!err)
 
         stream.on('response', function (status, headers) {
-          assert.equal(status, 200)
-          assert.equal(headers.ok, 'yes')
+          assert.strictEqual(status, 200)
+          assert.strictEqual(headers.ok, 'yes')
 
           fixtures.expectData(stream, 'response', next)
         })
@@ -120,8 +119,8 @@ describe('SPDY Server', function () {
       })
 
       server.on('request', function (req, res) {
-        assert.equal(req.method, 'POST')
-        assert.equal(req.url, '/post')
+        assert.strictEqual(req.method, 'POST')
+        assert.strictEqual(req.url, '/post')
 
         res.writeHead(200, {
           ok: 'yes'
@@ -158,7 +157,7 @@ describe('SPDY Server', function () {
         assert(!err)
 
         stream.on('response', function (status, headers) {
-          assert.equal(status, 100)
+          assert.strictEqual(status, 100)
 
           fixtures.expectData(stream, 'response', done)
         })
@@ -185,7 +184,7 @@ describe('SPDY Server', function () {
         assert(!err)
 
         stream.on('response', function (status, headers) {
-          assert.equal(status, 100)
+          assert.strictEqual(status, 100)
 
           fixtures.expectData(stream, 'response', done)
         })
@@ -210,8 +209,8 @@ describe('SPDY Server', function () {
         assert(!err)
 
         stream.on('pushPromise', function (push) {
-          assert.equal(push.path, '/push')
-          assert.equal(push.headers.yes, 'push')
+          assert.strictEqual(push.path, '/push')
+          assert.strictEqual(push.headers.yes, 'push')
 
           fixtures.expectData(push, 'push', next)
           fixtures.expectData(stream, 'response', next)
@@ -221,8 +220,8 @@ describe('SPDY Server', function () {
       })
 
       server.on('request', function (req, res) {
-        assert.equal(req.method, 'POST')
-        assert.equal(req.url, '/page')
+        assert.strictEqual(req.method, 'POST')
+        assert.strictEqual(req.url, '/page')
 
         res.writeHead(200, {
           ok: 'yes'
@@ -259,8 +258,8 @@ describe('SPDY Server', function () {
         stream.end()
 
         stream.on('response', function (status, headers) {
-          assert.equal(status, 200)
-          assert.equal(headers.ok, 'yes')
+          assert.strictEqual(status, 200)
+          assert.strictEqual(headers.ok, 'yes')
 
           fixtures.expectData(stream, 'response', done)
         })
@@ -270,7 +269,7 @@ describe('SPDY Server', function () {
         var gotHeaders = false
         req.on('trailers', function (headers) {
           gotHeaders = true
-          assert.equal(headers.trai, 'ler')
+          assert.strictEqual(headers.trai, 'ler')
         })
 
         req.on('end', function () {
@@ -293,7 +292,7 @@ describe('SPDY Server', function () {
         assert(!err)
 
         stream.on('response', function (status, headers) {
-          assert.equal(status, 300)
+          assert.strictEqual(status, 300)
 
           fixtures.expectData(stream, 'response', done)
         })
@@ -351,7 +350,7 @@ describe('SPDY Server', function () {
       server.on('request', function (req, res) {
         req.connection.on('close', function () {
           assert.doesNotThrow(function () {
-            assert.equal(res.push('/push', {}), undefined)
+            assert.strictEqual(res.push('/push', {}), undefined)
             res.end('response')
           })
           done()
@@ -367,7 +366,7 @@ describe('SPDY Server', function () {
         assert(!err)
 
         stream.on('response', function (status, headers) {
-          assert.equal(status, 200)
+          assert.strictEqual(status, 200)
 
           fixtures.expectData(stream, 'hello world, what\'s up?', done)
         })
@@ -401,7 +400,7 @@ describe('SPDY Server', function () {
       })
 
       server.on('request', function (req, res) {
-        assert.equal(req.headers['x-forwarded-for'], '1.2.3.4')
+        assert.strictEqual(req.headers['x-forwarded-for'], '1.2.3.4')
         req.resume()
         res.end()
       })
@@ -429,10 +428,10 @@ describe('SPDY Server', function () {
 
   it('should respond to http/1.1', function (done) {
     var server = spdy.createServer(fixtures.keys, function (req, res) {
-      assert.equal(req.isSpdy, res.isSpdy)
-      assert.equal(req.spdyVersion, res.spdyVersion)
+      assert.strictEqual(req.isSpdy, res.isSpdy)
+      assert.strictEqual(req.spdyVersion, res.spdyVersion)
       assert(!req.isSpdy)
-      assert.equal(req.spdyVersion, 1)
+      assert.strictEqual(req.spdyVersion, 1)
 
       res.writeHead(200)
       res.end()
@@ -447,7 +446,7 @@ describe('SPDY Server', function () {
         method: 'GET',
         path: '/'
       }, function (res) {
-        assert.equal(res.statusCode, 200)
+        assert.strictEqual(res.statusCode, 200)
         res.resume()
         res.on('end', function () {
           server.close(done)
@@ -465,10 +464,10 @@ describe('SPDY Server', function () {
     util.inherits(Pseuver, https.Server)
 
     var server = spdy.createServer(Pseuver, fixtures.keys, function (req, res) {
-      assert.equal(req.isSpdy, res.isSpdy)
-      assert.equal(req.spdyVersion, res.spdyVersion)
+      assert.strictEqual(req.isSpdy, res.isSpdy)
+      assert.strictEqual(req.spdyVersion, res.spdyVersion)
       assert(!req.isSpdy)
-      assert.equal(req.spdyVersion, 1)
+      assert.strictEqual(req.spdyVersion, 1)
 
       res.writeHead(200)
       res.end()
@@ -483,7 +482,7 @@ describe('SPDY Server', function () {
         method: 'GET',
         path: '/'
       }, function (res) {
-        assert.equal(res.statusCode, 200)
+        assert.strictEqual(res.statusCode, 200)
         res.resume()
         res.on('end', function () {
           server.close(done)
